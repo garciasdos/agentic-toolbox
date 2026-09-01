@@ -1,0 +1,12 @@
+{
+  "name": "gauntlet-audit",
+  "description": "Audita la red de verificación de un repo (9 campos, madurez 0-4, score global y roadmap) y responde: ¿puedo confiar en código escrito por agentes sin leerlo?",
+  "version": "0.1.0",
+  "author": {
+    "name": "540",
+    "url": "https://540deg.com"
+  },
+  "repository": "https://github.com/540/agentic-toolbox",
+  "license": "MIT",
+  "skills": ["./skills/gauntlet-audit"]
+}

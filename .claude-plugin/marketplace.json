@@ -1,0 +1,23 @@
+{
+  "name": "540",
+  "owner": {
+    "name": "540",
+    "url": "https://540deg.com"
+  },
+  "description": "Skills, hooks y recursos que 540 comparte en la serie IA en 540",
+  "metadata": {
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "gauntlet-audit",
+      "source": "./plugins/gauntlet-audit",
+      "description": "Audita la red de verificación de un repo (9 campos, madurez 0-4, score global y roadmap) y responde: ¿puedo confiar en código escrito por agentes sin leerlo?",
+      "version": "0.1.0",
+      "license": "MIT",
+      "category": "verification",
+      "keywords": ["testing", "mutation-testing", "coverage", "agentic-development"],
+      "skills": ["./skills/gauntlet-audit"]
+    }
+  ]
+}
