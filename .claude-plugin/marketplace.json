@@ -6,7 +6,7 @@
   },
   "description": "Skills, hooks y recursos que 540 comparte de su trabajo real con agentes",
   "metadata": {
-    "version": "0.1.0",
+    "version": "0.2.0",
     "pluginRoot": "./plugins"
   },
   "plugins": [
@@ -17,8 +17,15 @@
       "version": "0.1.0",
       "license": "MIT",
       "category": "verification",
-      "keywords": ["testing", "mutation-testing", "coverage", "agentic-development"],
-      "skills": ["./skills/gauntlet-audit"]
+      "keywords": [
+        "testing",
+        "mutation-testing",
+        "coverage",
+        "agentic-development"
+      ],
+      "skills": [
+        "./skills/gauntlet-audit"
+      ]
     },
     {
       "name": "no-comments",
@@ -27,7 +34,13 @@
       "version": "0.1.0",
       "license": "MIT",
       "category": "code-quality",
-      "keywords": ["hooks", "ruby", "comments", "code-quality", "agentic-development"]
+      "keywords": [
+        "hooks",
+        "ruby",
+        "comments",
+        "code-quality",
+        "agentic-development"
+      ]
     }
   ]
 }

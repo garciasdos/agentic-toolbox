@@ -6,6 +6,13 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-01
+
+### Added
+
+- Plugin `no-comments` (nuevo, 0.1.0): hook PreToolUse que bloquea los comentarios que el agente añade a ficheros Ruby (`.rb`/`.rake`); exime los pragmas de máquina (frozen_string_literal, sorbet, rubocop).
+- Skill `release` (`.claude/`, no se distribuye en plugins): flujo de release del marketplace, trasladado desde 540-claude-toolkit.
+
 ## [0.1.0] - 2026-09-01
 
 ### Added
@@ -13,5 +20,6 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - Plugin `gauntlet-audit`: audita la red de verificación de un repo (9 campos con madurez 0-4, score global y roadmap) y responde "¿puedo confiar en código escrito por agentes sin leerlo?".
 - Estructura inicial del marketplace: `plugins/`, `resources/`, licencia MIT.
 
-[Unreleased]: https://github.com/540/agentic-toolbox/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/540/agentic-toolbox/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/540/agentic-toolbox/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/540/agentic-toolbox/releases/tag/v0.1.0
