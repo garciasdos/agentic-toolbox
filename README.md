@@ -22,6 +22,7 @@ npx skills add 540/agentic-toolbox
 | Pieza | Qué hace |
 |-------|----------|
 | [gauntlet-audit](plugins/gauntlet-audit/) | Audita la red de verificación de un repo: 9 campos con madurez 0-4, score global y roadmap. Responde "¿puedo confiar en código escrito por agentes sin leerlo?". |
+| [no-comments](plugins/no-comments/) | Hook que bloquea los comentarios que el agente añade a ficheros Ruby: el código se explica solo. Exime los pragmas de máquina. |
 
 ## Estructura
 

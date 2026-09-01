@@ -1,0 +1,12 @@
+{
+  "name": "no-comments",
+  "description": "Hook PreToolUse que bloquea los comentarios nuevos en ficheros Ruby (.rb/.rake): el código se explica solo. Exime los pragmas de máquina (frozen_string_literal, sorbet, rubocop).",
+  "version": "0.1.0",
+  "author": {
+    "name": "540",
+    "url": "https://540deg.com"
+  },
+  "repository": "https://github.com/540/agentic-toolbox",
+  "license": "MIT",
+  "hooks": "./hooks/hooks.json"
+}

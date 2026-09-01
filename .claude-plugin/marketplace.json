@@ -6,6 +6,7 @@
   },
   "description": "Skills, hooks y recursos que 540 comparte de su trabajo real con agentes",
   "metadata": {
+    "version": "0.1.0",
     "pluginRoot": "./plugins"
   },
   "plugins": [
@@ -18,6 +19,15 @@
       "category": "verification",
       "keywords": ["testing", "mutation-testing", "coverage", "agentic-development"],
       "skills": ["./skills/gauntlet-audit"]
+    },
+    {
+      "name": "no-comments",
+      "source": "./plugins/no-comments",
+      "description": "Hook PreToolUse que bloquea los comentarios nuevos en ficheros Ruby (.rb/.rake): el código se explica solo. Exime los pragmas de máquina (frozen_string_literal, sorbet, rubocop).",
+      "version": "0.1.0",
+      "license": "MIT",
+      "category": "code-quality",
+      "keywords": ["hooks", "ruby", "comments", "code-quality", "agentic-development"]
     }
   ]
 }
