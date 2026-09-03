@@ -30,13 +30,15 @@
     {
       "name": "no-comments",
       "source": "./plugins/no-comments",
-      "description": "Hook PreToolUse que bloquea los comentarios nuevos en ficheros Ruby (.rb/.rake): el código se explica solo. Exime los pragmas de máquina (frozen_string_literal, sorbet, rubocop).",
+      "description": "Hook PreToolUse que bloquea los comentarios nuevos en ficheros Ruby (.rb/.rake) y JavaScript/TypeScript (.js/.jsx/.mjs/.cjs/.ts/.tsx/.mts/.cts): el código se explica solo. Exime los pragmas de máquina (frozen_string_literal, sorbet, rubocop, @ts-*, eslint, source maps). Se elige por lenguaje con NO_COMMENTS_LANGUAGES.",
       "version": "0.1.0",
       "license": "MIT",
       "category": "code-quality",
       "keywords": [
         "hooks",
         "ruby",
+        "javascript",
+        "typescript",
         "comments",
         "code-quality",
         "agentic-development"
