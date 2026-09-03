@@ -18,10 +18,12 @@ module NoComments
       PATHS = /\.(?:[cm]?js|[cm]?ts|jsx|tsx)\z/
       EXCLUDED = %r{
         /(?:node_modules|dist|build|out|coverage|\.next|\.nuxt|__generated__)/ |
-        \.d\.ts\z                                                             |
+        \.d\.[cm]?ts\z                                                        |
         \.min\.js\z                                                           |
         \.generated\.[cm]?[jt]sx?\z
       }x
+
+      TYPESCRIPT_PATHS = /\.(?:ts|tsx|mts|cts)\z/
       MARKERS = %w[package.json tsconfig.json deno.json deno.jsonc jsr.json].freeze
 
       ADVICE = "extract it into a well-named function and let the name carry " \
@@ -68,6 +70,24 @@ module NoComments
                           @preserve
                         )}x
 
+      # A @ts- directive is read by the compiler wherever it sits in the block,
+      # including a multiline JSDoc-style one.
+      TS_DIRECTIVE = %r{(?:\A|[\s*/])@ts-[a-z-]+}
+
+      # Tags that carry meaning in TypeScript too: @internal drives
+      # stripInternal, @deprecated drives editors and lint rules, and
+      # @import/@overload/@satisfies feed the checker.
+      SEMANTIC_TAGS = /(?:\A|[\s*])@(?:internal|deprecated|import|overload|satisfies)\b/
+
+      # In a .js file JSDoc *is* the type system, so a block carrying any of
+      # these is load-bearing and deleting it changes what typechecks. In a
+      # .ts file the syntax already says it, and a block restating a typed
+      # signature is exactly the noise this hook exists to stop.
+      TYPE_TAGS = /(?:\A|[\s*])@(?:type|typedef|callback|param|returns?|template|
+                                  enum|this|extends|implements|abstract|readonly|
+                                  property|prop|augments|throws|yields|constructor|
+                                  namespace)\b/x
+
       # A '/' can only open a regex in expression position. After these it is
       # an operand, so the '/' divides.
       REGEX_PRECEDING_PUNCTUATION = "(,=:[!&|?{};+-*%~^<>"
@@ -82,9 +102,11 @@ module NoComments
 
       module_function
 
-      # Comments in a chunk of source, each flattened to one line.
-      def comments(text)
+      # Comments in a chunk of source, each flattened to one line. The path
+      # decides whether JSDoc type tags are load-bearing.
+      def comments(text, path = "")
         src = text.to_s
+        jsdoc_carries_types = !path.to_s.match?(TYPESCRIPT_PATHS)
         found = []
         previous = nil
         index = 0
@@ -95,15 +117,13 @@ module NoComments
 
           if char == "/" && following == "/"
             body, index = read_to_end_of_line(src, index)
-            found << flatten(body) unless body.match?(LINE_PRAGMA)
+            found << flatten(body) unless body.match?(LINE_PRAGMA) || body.match?(TS_DIRECTIVE)
             next
           end
 
           if char == "/" && following == "*"
             body, index = read_block(src, index)
-            unless body.match?(BLOCK_PRAGMA) || body.start_with?("/*!")
-              found << flatten(body)
-            end
+            found << flatten(body) unless machine_read?(body, jsdoc_carries_types)
             next
           end
 
@@ -135,6 +155,14 @@ module NoComments
         end
 
         found
+      end
+
+      def machine_read?(body, jsdoc_carries_types)
+        return true if body.start_with?("/*!")
+        return true if body.match?(BLOCK_PRAGMA)
+        return true if body.match?(TS_DIRECTIVE) || body.match?(SEMANTIC_TAGS)
+
+        jsdoc_carries_types && body.match?(TYPE_TAGS)
       end
 
       def read_to_end_of_line(src, start)

@@ -9,7 +9,17 @@ Hook `PreToolUse` para Claude Code. Bloquea `Write`, `Edit` y `MultiEdit` cuando
 | Lenguaje | Extensiones | Se activa con | Exime |
 |----------|-------------|---------------|-------|
 | Ruby | `.rb`, `.rake` | `Gemfile` | shebang, `frozen_string_literal`, encoding, sigilo de Sorbet, directivas de RuboCop, `:nodoc:`/`:nocov:` |
-| JavaScript / TypeScript | `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts` | `package.json`, `tsconfig.json`, `deno.json(c)`, `jsr.json` | `@ts-*`, `/// <reference>`, ESLint, Biome, oxlint, deno-lint, dprint, tslint, `prettier-ignore`, istanbul/c8/v8, `sourceMappingURL`, `@__PURE__`, hints de webpack y Vite, `/*! */`, `@license`, `@preserve`, `@flow`, `@generated` |
+| JavaScript / TypeScript | `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts` | `package.json`, `tsconfig.json`, `deno.json(c)`, `jsr.json` | `@ts-*` (en línea o dentro de un bloque), `/// <reference>`, `@import`, `@overload`, `@satisfies`, `@internal`, `@deprecated`, ESLint, Biome, oxlint, deno-lint, dprint, tslint, `prettier-ignore`, istanbul/c8/v8, `sourceMappingURL`, `@__PURE__`, hints de webpack y Vite, `/*! */`, `@license`, `@preserve`, `@flow`, `@generated` |
+
+### JSDoc: depende del fichero
+
+Un bloque JSDoc no es lo mismo en `.js` que en `.ts`, y el hook lo trata distinto:
+
+| | `.js`, `.jsx`, `.mjs`, `.cjs` | `.ts`, `.tsx`, `.mts`, `.cts` |
+|--|-------------------------------|-------------------------------|
+| `@type`, `@param`, `@returns`, `@typedef`, `@template`, `@enum`… | **exento**: con `checkJs` o `// @ts-check` son el sistema de tipos, y borrarlos cambia lo que compila | **deny**: la sintaxis ya lo dice, y un `@param id The user id` es justo el ruido que este hook existe para frenar |
+| `@import`, `@overload`, `@satisfies`, `@internal`, `@deprecated` | exento | exento: los lee el compilador (`@internal` con `stripInternal`) o el editor |
+| Narración (`/** coge el usuario y sale */`) | deny | deny |
 
 ### Selección de lenguaje
 
@@ -34,7 +44,7 @@ Al leerse del entorno, un repo puede desactivarlo — o reducirlo a un solo leng
 - El escáner de Ruby sigue strings, interpolación `#{}`, literales `%w[]` y heredocs: un `#` dentro de datos no se lee como comentario. Los bloques `=begin`/`=end` cuentan como un comentario.
 - El de JS/TS sigue strings, template literals con `${}` e interpolación anidada, y literales de regex. Distingue regex de división por el token anterior, así que ni `total / count` ni el `/>` de JSX lo confunden. Un `{/* ... */}` de JSX sí es un comentario.
 - Solo actúa si el directorio de trabajo tiene un marcador del lenguaje. Así no salta al editar fixtures o ejemplos en repos que no son de ese lenguaje.
-- Ignora lo generado y lo vendorizado: `.d.ts`, `.min.js`, `.generated.*`, `node_modules/`, `dist/`, `build/`, `out/`, `coverage/`, `.next/`, `.nuxt/`, `__generated__/`, `vendor/bundle/`, `db/schema.rb`, `*_pb.rb`.
+- Ignora lo generado y lo vendorizado: `.d.ts`, `.d.mts`, `.d.cts`, `.min.js`, `.generated.*`, `node_modules/`, `dist/`, `build/`, `out/`, `coverage/`, `.next/`, `.nuxt/`, `__generated__/`, `vendor/bundle/`, `db/schema.rb`, `*_pb.rb`.
 - Ignora los scratchpads (`/tmp/`) y todo lo que viva bajo `.claude/`: la configuración del propio agente queda fuera de la regla.
 - Fail-open: ante cualquier error inesperado, deja pasar. Es un guardarraíl de flujo, no una frontera de seguridad.
 
@@ -59,7 +69,7 @@ Cada caso alimenta un payload de `PreToolUse` por stdin desde un proyecto de fix
 
 ## Añadir un lenguaje
 
-Un fichero en `hooks/languages/` con un módulo que defina `NAME`, `ALIASES`, `PATHS`, `EXCLUDED`, `MARKERS`, `ADVICE` y `comments(text)`; luego añadirlo a `LANGUAGES` en `hooks/no-comments.rb`. El escáner es lo único específico del lenguaje: el diff de "solo lo añadido", el gate de proyecto, la exclusión de scratchpads y el mensaje de deny son comunes.
+Un fichero en `hooks/languages/` con un módulo que defina `NAME`, `ALIASES`, `PATHS`, `EXCLUDED`, `MARKERS`, `ADVICE` y `comments(text, path)` — el `path` llega para los lenguajes cuya política depende de la extensión, como el JSDoc de `.js` frente al de `.ts`, y se ignora si no hace falta; luego añadirlo a `LANGUAGES` en `hooks/no-comments.rb`. El escáner es lo único específico del lenguaje: el diff de "solo lo añadido", el gate de proyecto, la exclusión de scratchpads y el mensaje de deny son comunes.
 
 ## Adaptarlo
 

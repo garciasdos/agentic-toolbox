@@ -54,6 +54,29 @@ JS_CASES = [
                                                   { "old_string" => "c", "new_string" => "d // tweak" }] }]
 ].freeze
 
+# JSDoc that the compiler reads. In TypeScript the type tags are noise (the
+# syntax already says it); in JavaScript they are the type system.
+TS_JSDOC_CASES = [
+  ["ts directive in block", :allow, { "content" => "/* @ts-expect-error legacy shape */\nfoo()\n" }],
+  ["ts directive multiline", :allow, { "content" => "/**\n * @ts-expect-error legacy shape\n */\nfoo()\n" }],
+  ["import tag", :allow, { "content" => "/** @import { Pet } from \"./types\" */\nlet p\n" }],
+  ["overload tag", :allow, { "content" => "/**\n * @overload\n * @param {string} a\n */\nfunction f(a) {}\n" }],
+  ["satisfies tag", :allow, { "content" => "/** @satisfies {Record<string, number>} */\nconst a = { b: 1 }\n" }],
+  ["internal tag", :allow, { "content" => "/** @internal */\nexport const days = 7\n" }],
+  ["deprecated tag", :allow, { "content" => "/** @deprecated use fetchUser */\nexport const get = () => 1\n" }],
+  ["type tag is noise in ts", :deny, { "content" => "/** @type {string} */\nexport const a = \"b\"\n" }],
+  ["param tag is noise in ts", :deny, { "content" => "/** @param id The user id */\nexport const get = (id) => id\n" }],
+  ["narration stays noise", :deny, { "content" => "/** grab the user and bail early */\nexport const get = () => 1\n" }]
+].freeze
+
+JS_JSDOC_CASES = [
+  ["type tag is load bearing", :allow, { "content" => "/** @type {string} */\nexport const a = \"b\"\n" }],
+  ["param tag is load bearing", :allow, { "content" => "/**\n * @param {string} id\n * @returns {string}\n */\nexport const get = (id) => id\n" }],
+  ["typedef tag", :allow, { "content" => "/** @typedef {{ name: string }} Pet */\nlet p\n" }],
+  ["import tag", :allow, { "content" => "/** @import { Pet } from \"./types\" */\nlet p\n" }],
+  ["narration stays noise", :deny, { "content" => "/** grab the user and bail early */\nexport const get = () => 1\n" }]
+].freeze
+
 JSX_CASES = [
   ["jsx expression comment", :deny, { "content" => "const v = <div>{/* render the label */}</div>\n" }],
   ["jsx self closing then comment", :deny, { "content" => "const v = <Foo bar={a} />\n// wrap it up\n" }]
@@ -64,6 +87,8 @@ SCOPE_CASES = [
   ["js file in ruby project", :allow, "/p/a.ts", "Gemfile", nil],
   ["unknown extension", :allow, "/p/a.go", "package.json", nil],
   ["declaration file", :allow, "/p/types.d.ts", "package.json", nil],
+  ["esm declaration file", :allow, "/p/types.d.mts", "package.json", nil],
+  ["cjs declaration file", :allow, "/p/types.d.cts", "package.json", nil],
   ["vendored js", :allow, "/p/node_modules/x/i.js", "package.json", nil],
   ["vendored gem", :allow, "/p/vendor/bundle/g/a.rb", "Gemfile", nil],
   ["generated schema", :allow, "/p/db/schema.rb", "Gemfile", nil],
@@ -111,6 +136,8 @@ end
 suites = {
   "ruby" => cases_for(RUBY_CASES, "/p/a.rb", "Gemfile"),
   "javascript" => cases_for(JS_CASES, "/p/a.ts", "package.json"),
+  "jsdoc in ts" => cases_for(TS_JSDOC_CASES, "/p/a.ts", "package.json"),
+  "jsdoc in js" => cases_for(JS_JSDOC_CASES, "/p/a.js", "package.json"),
   "jsx" => cases_for(JSX_CASES, "/p/a.tsx", "package.json"),
   "scope" => scope_cases(SCOPE_CASES),
   "selection" => scope_cases(SELECTION_CASES)

@@ -38,7 +38,7 @@ module NoComments
 
       # Comment lines in a chunk of source, skipping heredoc bodies and =begin
       # blocks' interiors (the =begin/=end pair itself is one comment).
-      def comments(text)
+      def comments(text, _path = "")
         found = []
         pending = []
         block = false

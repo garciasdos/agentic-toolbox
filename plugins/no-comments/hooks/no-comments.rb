@@ -69,11 +69,12 @@ module NoComments
 
   def added_comments(language, tool_input)
     edits = tool_input["edits"] || [tool_input]
+    path = tool_input["file_path"].to_s
 
     edits.flat_map do |edit|
       new_text = (edit["content"] || edit["new_string"]).to_s
-      kept = language.comments(edit["old_string"])
-      language.comments(new_text) - kept
+      kept = language.comments(edit["old_string"], path)
+      language.comments(new_text, path) - kept
     end
   end
 
