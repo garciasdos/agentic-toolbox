@@ -1,14 +1,5 @@
 # frozen_string_literal: true
 
-# JavaScript/TypeScript scanner for the no-comments hook.
-#
-# The scanner is a state machine over the source: single/double quoted strings,
-# template literals with ${} interpolation, and regex literals are skipped so a
-# '//' inside data is not read as a comment. Division and regex are told apart
-# by the preceding significant token, which keeps 'total / count' and JSX '/>'
-# out of it. Ambiguity resolves toward silence: a missed comment is a review
-# finding, a false deny is a blocked agent.
-
 module NoComments
   module Languages
     module JavaScript
@@ -70,42 +61,36 @@ module NoComments
                           @preserve
                         )}x
 
-      # A @ts- directive is read by the compiler wherever it sits in the block,
-      # including a multiline JSDoc-style one.
-      TS_DIRECTIVE = %r{(?:\A|[\s*/])@ts-[a-z-]+}
+      MINIFIER_PRESERVED_BANNER = "/*!"
 
-      # Tags that carry meaning in TypeScript too: @internal drives
-      # stripInternal, @deprecated drives editors and lint rules, and
-      # @import/@overload/@satisfies feed the checker.
-      SEMANTIC_TAGS = /(?:\A|[\s*])@(?:internal|deprecated|import|overload|satisfies)\b/
+      COMPILER_DIRECTIVE_ANYWHERE_IN_BLOCK = %r{(?:\A|[\s*/])@ts-[a-z-]+}
 
-      # In a .js file JSDoc *is* the type system, so a block carrying any of
-      # these is load-bearing and deleting it changes what typechecks. In a
-      # .ts file the syntax already says it, and a block restating a typed
-      # signature is exactly the noise this hook exists to stop.
-      TYPE_TAGS = /(?:\A|[\s*])@(?:type|typedef|callback|param|returns?|template|
-                                  enum|this|extends|implements|abstract|readonly|
-                                  property|prop|augments|throws|yields|constructor|
-                                  namespace)\b/x
+      TAGS_MEANINGFUL_IN_TYPESCRIPT =
+        /(?:\A|[\s*])@(?:internal|deprecated|import|overload|satisfies)\b/
 
-      # A '/' can only open a regex in expression position. After these it is
-      # an operand, so the '/' divides.
-      REGEX_PRECEDING_PUNCTUATION = "(,=:[!&|?{};+-*%~^<>"
+      TAGS_MEANINGFUL_ONLY_WHERE_JSDOC_IS_THE_TYPE_SYSTEM =
+        /(?:\A|[\s*])@(?:type|typedef|callback|param|returns?|template|
+                        enum|this|extends|implements|abstract|readonly|
+                        property|prop|augments|throws|yields|constructor|
+                        namespace)\b/x
 
-      REGEX_PRECEDING_KEYWORDS = %w[
+      PUNCTUATION_BEFORE_REGEX = "(,=:[!&|?{};+-*%~^<>"
+
+      KEYWORDS_BEFORE_REGEX = %w[
         return typeof case in of new delete void instanceof yield await throw
         else do
       ].freeze
 
-      # Stands in for a skipped literal: a value, so a '/' after it divides.
-      VALUE = "\0"
+      TRAILING_IDENTIFIER = /([A-Za-z_$][A-Za-z0-9_$]*)\s*\z/
+
+      SKIPPED_LITERAL = "\0"
+
+      LONGEST_REPORTED_COMMENT = 96
 
       module_function
 
-      # The path decides whether JSDoc type tags are load-bearing.
       def comments(text, path = "")
         src = text.to_s
-        jsdoc_carries_types = !path.to_s.match?(TYPESCRIPT_PATHS)
         found = []
         previous = nil
         index = 0
@@ -116,13 +101,13 @@ module NoComments
 
           if char == "/" && following == "/"
             body, index = read_to_end_of_line(src, index)
-            found << flatten(body) unless body.match?(LINE_PRAGMA) || body.match?(TS_DIRECTIVE)
+            found << flattened(body) unless machine_read_line?(body)
             next
           end
 
           if char == "/" && following == "*"
             body, index = read_block(src, index)
-            found << flatten(body) unless machine_read?(body, jsdoc_carries_types)
+            found << flattened(body) unless machine_read_block?(body, path)
             next
           end
 
@@ -134,17 +119,17 @@ module NoComments
           case char
           when "'", '"'
             index = skip_quoted(src, index, char)
-            previous = VALUE
+            previous = SKIPPED_LITERAL
             next
           when "`"
             index = skip_template(src, index)
-            previous = VALUE
+            previous = SKIPPED_LITERAL
             next
           when "/"
-            after_regex = regex_position?(previous, src, index) ? skip_regex(src, index) : nil
-            if after_regex
-              index = after_regex
-              previous = VALUE
+            after_literal = opens_regex_literal?(previous, src, index) ? end_of_regex_literal(src, index) : nil
+            if after_literal
+              index = after_literal
+              previous = SKIPPED_LITERAL
               next
             end
           end
@@ -156,12 +141,22 @@ module NoComments
         found
       end
 
-      def machine_read?(body, jsdoc_carries_types)
-        return true if body.start_with?("/*!")
-        return true if body.match?(BLOCK_PRAGMA)
-        return true if body.match?(TS_DIRECTIVE) || body.match?(SEMANTIC_TAGS)
+      def machine_read_line?(body)
+        body.match?(LINE_PRAGMA) || body.match?(COMPILER_DIRECTIVE_ANYWHERE_IN_BLOCK)
+      end
 
-        jsdoc_carries_types && body.match?(TYPE_TAGS)
+      def machine_read_block?(body, path)
+        return true if body.start_with?(MINIFIER_PRESERVED_BANNER)
+        return true if body.match?(BLOCK_PRAGMA)
+        return true if body.match?(COMPILER_DIRECTIVE_ANYWHERE_IN_BLOCK)
+        return true if body.match?(TAGS_MEANINGFUL_IN_TYPESCRIPT)
+
+        jsdoc_is_the_type_system?(path) &&
+          body.match?(TAGS_MEANINGFUL_ONLY_WHERE_JSDOC_IS_THE_TYPE_SYSTEM)
+      end
+
+      def jsdoc_is_the_type_system?(path)
+        !path.to_s.match?(TYPESCRIPT_PATHS)
       end
 
       def read_to_end_of_line(src, start)
@@ -177,6 +172,7 @@ module NoComments
 
       def skip_quoted(src, start, quote)
         index = start + 1
+
         while index < src.length
           case src[index]
           when "\\" then index += 2
@@ -185,11 +181,13 @@ module NoComments
           else index += 1
           end
         end
+
         index
       end
 
       def skip_template(src, start)
         index = start + 1
+
         while index < src.length
           case src[index]
           when "\\"
@@ -202,12 +200,14 @@ module NoComments
             index += 1
           end
         end
+
         index
       end
 
       def skip_interpolation(src, start)
         depth = 1
         index = start
+
         while index < src.length && depth.positive?
           case src[index]
           when "'", '"' then index = skip_quoted(src, index, src[index])
@@ -221,46 +221,48 @@ module NoComments
           else index += 1
           end
         end
+
         index
       end
 
-      # End of a regex literal starting at start, or nil when the '/' turns out
-      # to be division: a literal cannot span a line, so an unterminated one is
-      # not one.
-      def skip_regex(src, start)
+      def end_of_regex_literal(src, start)
         index = start + 1
-        in_class = false
+        inside_character_class = false
+
         while index < src.length
           case src[index]
           when "\n" then return nil
           when "\\" then index += 2
           when "["
-            in_class = true
+            inside_character_class = true
             index += 1
           when "]"
-            in_class = false
+            inside_character_class = false
             index += 1
           when "/"
-            return index + 1 unless in_class
+            return index + 1 unless inside_character_class
 
             index += 1
           else index += 1
           end
         end
+
         nil
       end
 
-      def regex_position?(previous, src, index)
+      def opens_regex_literal?(previous, src, index)
         return true if previous.nil?
-        return true if REGEX_PRECEDING_PUNCTUATION.include?(previous)
+        return true if PUNCTUATION_BEFORE_REGEX.include?(previous)
 
-        word = src[0...index].match(/([A-Za-z_$][A-Za-z0-9_$]*)\s*\z/)
-        word ? REGEX_PRECEDING_KEYWORDS.include?(word[1]) : false
+        identifier = src[0...index].match(TRAILING_IDENTIFIER)
+        identifier ? KEYWORDS_BEFORE_REGEX.include?(identifier[1]) : false
       end
 
-      def flatten(body)
+      def flattened(body)
         one_line = body.gsub(/\s+/, " ").strip
-        one_line.length > 96 ? "#{one_line[0, 96]}…" : one_line
+        return one_line if one_line.length <= LONGEST_REPORTED_COMMENT
+
+        "#{one_line[0, LONGEST_REPORTED_COMMENT]}…"
       end
     end
   end

@@ -1,12 +1,5 @@
 # frozen_string_literal: true
 
-# Ruby scanner for the no-comments hook.
-#
-# The line scanner tracks single/double/backtick strings, #{} interpolation,
-# % literals and heredoc bodies so a '#' inside data is not read as a comment.
-# Ambiguity resolves toward silence: a missed comment is a review finding, a
-# false deny is a blocked agent.
-
 module NoComments
   module Languages
     module Ruby
@@ -20,44 +13,50 @@ module NoComments
       ADVICE = "extract it into a well-named method and let the name carry " \
                "the meaning."
 
-      PRAGMA = /\A\#\s*(?:
-                  !                              |  # shebang
-                  frozen_string_literal\s*:      |
-                  (?:en)?coding\s*[:=]           |
-                  -\*-                           |  # emacs modeline
-                  typed\s*:                      |  # sorbet
-                  rubocop\s*:                    |
-                  :\s*no(?:doc|cov)\s*:
-                )/x
+      SHEBANG = /!/
+      FROZEN_STRING_LITERAL = /frozen_string_literal\s*:/
+      SOURCE_ENCODING = /(?:en)?coding\s*[:=]/
+      EMACS_MODELINE = /-\*-/
+      SORBET_SIGIL = /typed\s*:/
+      RUBOCOP_DIRECTIVE = /rubocop\s*:/
+      RDOC_VISIBILITY = /:\s*no(?:doc|cov)\s*:/
 
-      HEREDOC = /<<([-~])?(["'`]?)([A-Z_][A-Z0-9_]*)\2/
+      PRAGMA = /\A\#\s*#{Regexp.union(SHEBANG, FROZEN_STRING_LITERAL, SOURCE_ENCODING,
+                                      EMACS_MODELINE, SORBET_SIGIL, RUBOCOP_DIRECTIVE,
+                                      RDOC_VISIBILITY)}/
 
-      PERCENT_CLOSE = { "[" => "]", "(" => ")", "{" => "}", "<" => ">" }.freeze
+      BLOCK_COMMENT_START = "=begin"
+      BLOCK_COMMENT_END = "=end"
+
+      HEREDOC_OPENER = /<<([-~])?(["'`]?)([A-Z_][A-Z0-9_]*)\2/
+
+      PERCENT_LITERAL_CLOSERS = { "[" => "]", "(" => ")", "{" => "}", "<" => ">" }.freeze
+      PERCENT_LITERAL_OPENER = /\A%[qQwWiIrs]?([^\sA-Za-z0-9])/
+
+      PUNCTUATION_OPENING_EXPRESSION = /[\s(\[{,=]/
 
       module_function
 
-      # Comment lines in a chunk of source, skipping heredoc bodies and =begin
-      # blocks' interiors (the =begin/=end pair itself is one comment).
       def comments(text, _path = "")
         found = []
-        pending = []
-        block = false
+        heredoc_terminators_awaited = []
+        inside_block_comment = false
 
         text.to_s.each_line do |raw|
           line = raw.chomp
 
-          if pending.any?
-            pending.shift if line.strip == pending.first
+          if heredoc_terminators_awaited.any?
+            heredoc_terminators_awaited.shift if line.strip == heredoc_terminators_awaited.first
             next
           end
 
-          if block
-            block = false if line.start_with?("=end")
+          if inside_block_comment
+            inside_block_comment = false if line.start_with?(BLOCK_COMMENT_END)
             next
           end
 
-          if line.start_with?("=begin")
-            block = true
+          if line.start_with?(BLOCK_COMMENT_START)
+            inside_block_comment = true
             found << line
             next
           end
@@ -65,99 +64,118 @@ module NoComments
           comment = comment_at(line)
           found << comment.strip if comment && !comment.match?(PRAGMA)
 
-          line.scan(HEREDOC) { |_, _, id| pending << id }
+          line.scan(HEREDOC_OPENER) { |_, _, terminator| heredoc_terminators_awaited << terminator }
         end
 
         found
       end
 
-      # Comment text on a line, or nil. Walks the line so a '#' inside a
-      # string, an interpolation, or a % literal is not mistaken for a comment
-      # start.
       def comment_at(line)
-        i = 0
-        prev = nil
-        while i < line.length
-          c = line[i]
-          case c
+        index = 0
+        previous = nil
+
+        while index < line.length
+          char = line[index]
+
+          case char
           when "'", '"', "`"
-            i = skip_string(line, i, c)
-            prev = nil
+            index = skip_string(line, index, char)
+            previous = nil
             next
           when "%"
-            skipped = skip_percent_literal(line, i, prev)
-            if skipped
-              i = skipped
-              prev = nil
+            after_literal = end_of_percent_literal(line, index, previous)
+            if after_literal
+              index = after_literal
+              previous = nil
               next
             end
           when "#"
-            return line[i..] if prev.nil? || prev.match?(/\s/)
+            return line[index..] if comment_can_start_after?(previous)
           end
-          prev = c
-          i += 1
+
+          previous = char
+          index += 1
         end
+
         nil
       end
 
-      # End of a %w[]/%q()/%r{} literal starting at start, or nil when this '%'
-      # is modulo. Only a '%' that opens an expression can start a literal,
-      # which keeps 'total % count' out of it.
-      def skip_percent_literal(line, start, prev)
-        return nil unless prev.nil? || prev.match?(/[\s(\[{,=]/)
+      def comment_can_start_after?(previous)
+        previous.nil? || previous.match?(/\s/)
+      end
 
-        rest = line[start..]
-        m = rest.match(/\A%[qQwWiIrs]?([^\sA-Za-z0-9])/)
-        return nil unless m
+      def end_of_percent_literal(line, start, previous)
+        return nil unless opens_expression?(previous)
 
-        open = m[1]
-        close = PERCENT_CLOSE[open] || open
+        opener = line[start..].match(PERCENT_LITERAL_OPENER)
+        return nil unless opener
+
+        scan_to_percent_literal_close(line, start + opener[0].length, opener[1])
+      end
+
+      def opens_expression?(previous)
+        previous.nil? || previous.match?(PUNCTUATION_OPENING_EXPRESSION)
+      end
+
+      def scan_to_percent_literal_close(line, start, open)
+        close = PERCENT_LITERAL_CLOSERS[open] || open
+        nestable = close != open
         depth = 1
-        i = start + m[0].length
-        while i < line.length
-          case line[i]
-          when "\\" then i += 1
-          when open then depth += 1 if close != open
+        index = start
+
+        while index < line.length
+          case line[index]
+          when "\\" then index += 1
+          when open then depth += 1 if nestable
           when close
             depth -= 1
-            return i + 1 if depth.zero?
+            return index + 1 if depth.zero?
           end
-          i += 1
+          index += 1
         end
-        i
+
+        index
       end
 
       def skip_string(line, start, quote)
-        i = start + 1
-        while i < line.length
-          case line[i]
+        index = start + 1
+
+        while index < line.length
+          case line[index]
           when "\\"
-            i += 2
+            index += 2
             next
           when quote
-            return i + 1
+            return index + 1
           when "#"
-            if quote != "'" && line[i + 1] == "{"
-              i = skip_interpolation(line, i + 2)
+            if interpolates?(quote) && line[index + 1] == "{"
+              index = skip_interpolation(line, index + 2)
               next
             end
           end
-          i += 1
+          index += 1
         end
-        i
+
+        index
+      end
+
+      def interpolates?(quote)
+        quote != "'"
       end
 
       def skip_interpolation(line, start)
         depth = 1
-        i = start
-        while i < line.length && depth.positive?
-          case line[i]
+        index = start
+
+        while index < line.length && depth.positive?
+          case line[index]
           when "{" then depth += 1
           when "}" then depth -= 1
           end
-          i += 1
+          index += 1
         end
-        i
+
+        index
       end
     end
   end
