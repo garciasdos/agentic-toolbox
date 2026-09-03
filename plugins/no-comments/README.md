@@ -73,4 +73,4 @@ Un fichero en `hooks/languages/` con un módulo que defina `NAME`, `ALIASES`, `P
 
 ## Adaptarlo
 
-- ¿Otra política? El mensaje de deny vive en `hooks/no-comments.rb` (`MESSAGE_HEAD` y `MESSAGE_TAIL`) y el consejo por lenguaje en el `ADVICE` de cada módulo; ajústalos a la convención de tu equipo.
+- ¿Otra política? El mensaje de deny vive en `hooks/no-comments.rb` (`MESSAGE_HEAD` y `MESSAGE_TAIL`) y la sugerencia por lenguaje en el `ADVICE` de cada módulo; ajústalos a la convención de tu equipo.
