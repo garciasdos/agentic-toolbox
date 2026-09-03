@@ -10,9 +10,7 @@
 # with the code it annotates, so refactors and moves never trip the hook.
 #
 # The file's extension picks the language; each language under languages/ owns
-# its own scanner, its pragma exemptions, and the project markers that say "this
-# really is such a project". NO_COMMENTS_LANGUAGES narrows the set, or turns the
-# hook off for a project when set empty.
+# what is specific to it. README.md documents the contract.
 #
 # Pinned to /usr/bin/ruby (system ruby, no version-manager shim) and
 # stdlib-only. Fail-open everywhere: anything unexpected -> exit 0. Workflow
@@ -25,7 +23,6 @@ require_relative "languages/ruby"
 module NoComments
   LANGUAGES = [Languages::Ruby, Languages::JavaScript].freeze
 
-  # Scratchpads and the agent's own configuration stay outside the rule.
   IGNORED_PATHS = %r{\A/(?:private/)?tmp/|\.claude/}
 
   MESSAGE_HEAD = "This codebase carries no explanatory comments: the target " \

@@ -102,8 +102,7 @@ module NoComments
 
       module_function
 
-      # Comments in a chunk of source, each flattened to one line. The path
-      # decides whether JSDoc type tags are load-bearing.
+      # The path decides whether JSDoc type tags are load-bearing.
       def comments(text, path = "")
         src = text.to_s
         jsdoc_carries_types = !path.to_s.match?(TYPESCRIPT_PATHS)
