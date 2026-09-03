@@ -2,7 +2,7 @@
 
 Parte de [540 Agentic Toolbox](https://github.com/540/agentic-toolbox).
 
-Hook `PreToolUse` para Claude Code. Bloquea `Write`, `Edit` y `MultiEdit` cuando el agente añade comentarios a un fichero de un lenguaje soportado. La premisa: el código dice lo que hace, y un comentario que lo repite caduca en cuanto uno de los dos cambia. Si un bloque parece pedir comentario, el problema es de naming: se extrae un método (o una función) con buen nombre.
+Hook `PreToolUse` para Claude Code. Bloquea `Write`, `Edit` y `MultiEdit` cuando el agente añade comentarios a un fichero de un lenguaje soportado. La premisa: el código dice lo que hace, y un comentario que lo repite caduca en cuanto uno de los dos cambia. Si un bloque parece pedir comentario, el problema es de naming: se extrae un método con buen nombre.
 
 ## Lenguajes
 
