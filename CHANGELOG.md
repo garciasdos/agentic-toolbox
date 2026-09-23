@@ -6,6 +6,18 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Unreleased]
 
+### Changed
+
+- El plugin `no-comments` pasa a llamarse `no-comments-ruby`: su escáner siempre fue específico de Ruby y el nombre genérico queda libre para la versión agnóstica al lenguaje. Quien lo tuviera instalado debe reinstalarlo con el nombre nuevo.
+
+### Added
+
+- Plugin `no-comments` (nuevo, 0.1.0): la versión agnóstica al lenguaje del hook. Bloquea los comentarios nuevos en Ruby (`.rb`/`.rake`) y JavaScript/TypeScript (`.js`/`.jsx`/`.mjs`/`.cjs`/`.ts`/`.tsx`/`.mts`/`.cts`); exime los pragmas de máquina (frozen_string_literal, sorbet, rubocop, `@ts-*`, eslint, source maps) y el JSDoc que lee el compilador. Los lenguajes se eligen con `NO_COMMENTS_LANGUAGES`. Incluye una batería de tests (`plugins/no-comments/test/`).
+
+### Fixed
+
+- `no-comments-ruby`: el manifiesto ya no declara `hooks/hooks.json`. Claude Code lo carga por convención y declararlo además provocaba el error "Duplicate hooks file detected", dejando el plugin habilitado pero sin hook.
+
 ## [0.2.0] - 2026-09-01
 
 ### Added
